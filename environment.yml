@@ -1,0 +1,38 @@
+name: GenAi
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # ---- Base ----
+  - python=3.10
+  - pip
+  - numpy
+  - pillow        # conda build (stabile)
+  - opencv        # conda build (evita problemi DLL)
+  - matplotlib
+  - jupyterlab
+
+  # ---- pip packages ----
+  - pip:
+      - python-dotenv
+      # PyTorch CPU ufficiale
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      #--extra-index-url https://download.pytorch.org/whl/cpu to use cpu
+      - torch
+      - torchvision
+      - torchaudio
+
+      # Diffusers + ControlNet + Accelerate
+      - diffusers
+      - transformers
+      - accelerate
+
+      # Image processing
+      - safetensors
+      - einops
+      - langchain
+      - langchain-ollama
+      - traceloop-sdk
+      
+
