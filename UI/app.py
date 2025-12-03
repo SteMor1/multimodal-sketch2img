@@ -43,15 +43,16 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         with gr.Column():
-            sketch = gr.Sketchpad(label="Draw your sketch",layers=False,type="pil")
+            sketch = gr.Sketchpad(label="Draw your sketch",layers=False,type="pil" ,height=512 )
+        with gr.Column():
+            output_img = gr.Image(label="Generated Image",height=512 )
+    with gr.Row():
+        with gr.Column():
             user_prompt = gr.Textbox(label="Your prompt")
             btn = gr.Button("Generate")
 
-        with gr.Column():
-            output_img = gr.Image(label="Generated Image")
-
-    caption_box = gr.Textbox(label="Sketch description", interactive=False)
-    final_prompt_box = gr.Textbox(label="Final prompt used", interactive=False)
+    caption_box = gr.Textbox(label="Sketch description", interactive=False,lines=3) # Label for the generated caption
+    final_prompt_box = gr.Textbox(label="Final prompt used", interactive=False,lines=3) #Label for the generated final prompt
 
     btn.click(process, [sketch, user_prompt],
               [caption_box, final_prompt_box, output_img])
