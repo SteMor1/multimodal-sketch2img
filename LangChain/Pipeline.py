@@ -7,6 +7,7 @@ from pydantic import BaseModel
 # Env Loading
 from dotenv import load_dotenv
 import os
+import json
 #Logging
 from traceloop.sdk import Traceloop
 #SD-ControlNet
@@ -16,19 +17,41 @@ import cv2
 from PIL import Image
 import numpy as np
 import os
+#Pipline
+from langchain_core.runnables import RunnableSequence
 
+### UTILS ###
+def encode_image(path: str) -> str:
+    """Encode image to base64"""
+    #Sketch descriptor wants this format
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8") 
+    
+def load_sketch(path):
+    img = cv2.imread(path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img = cv2.resize(img, (512, 512))
+    #img = cv2.Canny(img, 250 ,250)
+    img = Image.fromarray(img)
+    return img
+def load_instructions():
+    with open("model_instructions.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+def load_model_configs():
+        with open("model_configs.json", "r", encoding="utf-8") as f:
+            return json.load(f)
 
 ###SETUP###
 os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # ONLY USE THIS LINE ON WINDOWS (COMMENT WHEN USING LINUX)
 
 load_dotenv(dotenv_path="setup.env",override=True)  
+model_configs = load_model_configs()
 
 OLLAMA_SERVER = os.getenv("OLLAMA_SERVER",default="localhost:11434")
 PROMPT_CREATOR_MODEL = os.getenv("PROMPT_CREATOR_MODEL",default="None")
 SKETCH_DESCRIPTOR_MODEL = os.getenv("SKETCH_DESCRIPTOR_MODEL",default="None")
 print(f"Ollama Server: {OLLAMA_SERVER}\nPrompt Creator Model: {PROMPT_CREATOR_MODEL}\nSketch Descriptor Model: {SKETCH_DESCRIPTOR_MODEL}")
-
 ### LOGGING ###
 
 Traceloop.init(
@@ -38,7 +61,7 @@ Traceloop.init(
 )
 
 #Model Instatiation
-sketch_descriptor_llm = ChatOllama(model=SKETCH_DESCRIPTOR_MODEL,base_url=OLLAMA_SERVER) #Multiple  Interaction
+sketch_descriptor_llm = ChatOllama(model=SKETCH_DESCRIPTOR_MODEL,base_url=OLLAMA_SERVER,temperature=0) #Multiple  Interaction
 prompt_creator_llm = OllamaLLM(model=PROMPT_CREATOR_MODEL,base_url=OLLAMA_SERVER) #single interaction 
 
 
@@ -54,20 +77,6 @@ pipe = StableDiffusionControlNetPipeline.from_pretrained(
     torch_dtype=torch.float16
 ).to("cuda")
 
-### UTILS
-def encode_image(path: str) -> str:
-    """Encode image to base64"""
-    #Sketch descriptor wants this format
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8") 
-    
-def load_sketch(path):
-    img = cv2.imread(path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img = cv2.resize(img, (512, 512))
-    img = cv2.Canny(img, 250 ,250)
-    img = Image.fromarray(img)
-    return img
 
 ### TOOLS DEFINITION ###
 
@@ -87,29 +96,28 @@ def get_sketch_desc_prompt(image_path: str) -> str:
     }
     """
     
-    prompt = """
-    You are an expert vision-language model. Analyze the provided image and describe it as if it were a real scene, without ever mentioning or implying that the image is a sketch, drawing, outline, or line-art.
-
-    Describe this image.
-    Ignore that it is a sketch. No speculation. No comments Provide:
-    1. Scene overview
-    2. Main subjects
-    3. Background
-    4. Fine details
-    5. Tags for realistic text-to-image generation
-
-    The response should be short, no reference in the description to the fact that the image is a sketch (very important) or the drawing style
-"""
+    instruction = load_instructions()["sketch_descriptor_instruction"]
     
     image_b64 = encode_image(image_path)
     
     messages = [
-    {"role": "user",
-     "content": [
-        {"type": "text", "text": prompt},
-        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
-     ]}
-]
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "SYSTEM RULES (FOLLOW STRICTLY):\n"+ instruction
+                    )
+                },
+                {
+                    "type": "image_url",
+                    "image_url": f"data:image/jpeg;base64,{image_b64}"
+                }
+            ]
+        }
+    ]
+
 
 
 
@@ -153,7 +161,8 @@ def create_sd_prompt(    caption: str, user_prompt:str) -> str:
         "user_prompt": "..."
     }
     """
-    instruction = prompt_creator_instruction_template.format(
+    instruction = load_instructions()["prompt_creator_instruction_template"]
+    instruction = instruction.format(
     caption=caption,
     user_prompt=user_prompt)
 
@@ -170,23 +179,25 @@ def generate_controlnet(sketch_path:str, prompt:str):
     """Tool to generate an image using sd given an input sketch and a prompt"""
     sketch = load_sketch(sketch_path)
 
-    negative_prompt = (
-        "metal, glossy, plastic, alien texture, creepy, horror, shiny skin, scales, armor, robotic, "
-        "deformed, blur, noise, extra limbs, distorted colors"
-    )
+    controlnet_params = load_model_configs()["models"]["controlnet-sd"] # load parameters for each request to enable more control over the pipline
+    negative_prompt = controlnet_params["negative_prompt"]
+    num_inference_step = controlnet_params["num_inference_steps"]
+    guidance_scale = controlnet_params["guidance_scale"]
+    controlnet_conditioning_scale = controlnet_params["controlnet_conditioning_scale"]
+
     result = pipe(
         prompt,
         negative_prompt=negative_prompt,
         image=sketch,
-        num_inference_steps=10,
-        guidance_scale=9,
-        controlnet_conditioning_scale=1.2
+        num_inference_steps=num_inference_step,
+        guidance_scale=guidance_scale,
+        controlnet_conditioning_scale=controlnet_conditioning_scale
     
     )
 
     return result.images[0]
 ### PIPLINE DEFINTION ###
-from langchain_core.runnables import RunnableSequence
+
 
 pipeline = RunnableSequence(
     # Step 1 — pass inputs through
@@ -211,7 +222,7 @@ pipeline = RunnableSequence(
         "sketch_path": inputs["sketch_path"]
     },
 
-    # Step 4 — SD image generation (NEW)
+    # Step 4 — SD image generation 
     lambda inputs: {
         "caption": inputs["caption"],
         "final_prompt": inputs["final_prompt"],
