@@ -4,8 +4,16 @@ import tempfile
 import base64
 from PIL import Image
 from io import BytesIO
+import yaml
 
-API_URL = "http://desktop-roma:8000/generate"
+
+# Load configuration from a YAML file
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+# Update API_URL from the configuration
+SERVER_URL = config.get("server_url", "http://localhost:8000")
+API_URL = SERVER_URL+"/generate"
 
 def process(sketch_img, user_prompt):
     if sketch_img is None:
