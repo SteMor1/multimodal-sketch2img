@@ -49,6 +49,8 @@ load_dotenv(dotenv_path="setup.env",override=True)
 model_configs = load_model_configs()
 
 OLLAMA_SERVER = os.getenv("OLLAMA_SERVER",default="localhost:11434")
+TRACELOOP_ENDPOINT = os.getenv("TRACELOOP_ENDPOINT",default="localhost:4318")
+
 PROMPT_CREATOR_MODEL = os.getenv("PROMPT_CREATOR_MODEL",default="None")
 SKETCH_DESCRIPTOR_MODEL = os.getenv("SKETCH_DESCRIPTOR_MODEL",default="None")
 print(f"Ollama Server: {OLLAMA_SERVER}\nPrompt Creator Model: {PROMPT_CREATOR_MODEL}\nSketch Descriptor Model: {SKETCH_DESCRIPTOR_MODEL}")
