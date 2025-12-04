@@ -109,7 +109,7 @@ def get_sketch_desc_prompt(image_path: str) -> str:
                 {
                     "type": "text",
                     "text": (
-                        "SYSTEM RULES (FOLLOW STRICTLY):\n"+ instruction
+                         instruction
                     )
                 },
                 {
