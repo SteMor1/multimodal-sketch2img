@@ -13,6 +13,9 @@ with open("config.yaml", "r") as file:
 
 # Update API_URL from the configuration
 SERVER_URL = config.get("server_url", "http://localhost:8000")
+if(SERVER_URL is None):
+    print("Set the server_url field inside config.yml")
+    exit(0)
 API_URL = SERVER_URL+"/generate"
 
 def process(sketch_img, user_prompt):
