@@ -19,7 +19,7 @@ The pipeline consists of the following steps:
 
 ## How to Run
 
-1. Set up the environment using the provided `environment.yml` file.
+1. Set up the conda environment using the provided `environment.yml` file.
 2. Start the logging components by using the docker compose file inside the `Logging` folder
 3. Start the server by running `server.py`.
 4. Optionally, launch the Gradio UI for an interactive experience.

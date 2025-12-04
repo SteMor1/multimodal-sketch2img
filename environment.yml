@@ -8,15 +8,15 @@ dependencies:
   - python=3.10
   - pip
   - numpy
-  - pillow        # conda build (stabile)
-  - opencv        # conda build (evita problemi DLL)
+  - pillow        
+  - opencv        
   - matplotlib
   - jupyterlab
 
   # ---- pip packages ----
   - pip:
       - python-dotenv
-      # PyTorch CPU ufficiale
+      # PyTorch CPU official
       - --extra-index-url https://download.pytorch.org/whl/cu128
       #--extra-index-url https://download.pytorch.org/whl/cpu to use cpu
       - torch
