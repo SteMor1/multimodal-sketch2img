@@ -1,0 +1,10 @@
+name: sketch-to-image-client
+
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - gradio
+      - requests
+      - pyyaml
+      - pillow
