@@ -1,3 +1,6 @@
+#Utils
+from utils import *
+
 #Langchain
 from langchain.tools import tool
 from langchain_ollama import ChatOllama, OllamaLLM
@@ -7,66 +10,64 @@ from pydantic import BaseModel
 # Env Loading
 from dotenv import load_dotenv
 import os
-import json
+
 #Logging
 from traceloop.sdk import Traceloop
+
 #SD-ControlNet
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
 import torch
-import cv2
-from PIL import Image
-import numpy as np
 import os
-#Pipline
+#Pipeline
 from langchain_core.runnables import RunnableSequence
 
-### UTILS ###
-def encode_image(path: str) -> str:
-    """Encode image to base64"""
-    #Sketch descriptor wants this format
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8") 
-    
-def load_sketch(path):
-    img = cv2.imread(path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img = cv2.resize(img, (512, 512))
-    #img = cv2.Canny(img, 250 ,250)
-    img = Image.fromarray(img)
-    return img
-def load_instructions():
-    with open("model_instructions.json", "r", encoding="utf-8") as f:
-        return json.load(f)
-def load_model_configs():
-        with open("model_configs.json", "r", encoding="utf-8") as f:
-            return json.load(f)
 
 ###SETUP###
 os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE" # ONLY USE THIS LINE ON WINDOWS (COMMENT WHEN USING LINUX)
 
-load_dotenv(dotenv_path="setup.env",override=True)  
+load_dotenv(dotenv_path="configs/setup.env",override=True)  
 model_configs = load_model_configs()
-
+#Infrastructure setup
 OLLAMA_SERVER = os.getenv("OLLAMA_SERVER",default="localhost:11434")
 TRACELOOP_ENDPOINT = os.getenv("TRACELOOP_ENDPOINT",default="localhost:4318")
 
-PROMPT_CREATOR_MODEL = os.getenv("PROMPT_CREATOR_MODEL",default="None")
-SKETCH_DESCRIPTOR_MODEL = os.getenv("SKETCH_DESCRIPTOR_MODEL",default="None")
-print(f"Ollama Server: {OLLAMA_SERVER}\nPrompt Creator Model: {PROMPT_CREATOR_MODEL}\nSketch Descriptor Model: {SKETCH_DESCRIPTOR_MODEL}")
+#Models setup
+prompt_creator_configs=model_configs["models"]["llm_prompt_creator"] 
+sketch_descriptor_configs = model_configs["models"]["sketch_descriptor"] 
+SKETCH_DESCRIPTOR_MODEL = sketch_descriptor_configs["name"]     #os.getenv("SKETCH_DESCRIPTOR_MODEL",default="None")
+PROMPT_CREATOR_MODEL =  prompt_creator_configs["name"]    #os.getenv("PROMPT_CREATOR_MODEL",default="None")
+
+# Setup resume
+print(
+    f"""
+    #######INFRASTUCTURE#######
+    Ollama Server: {OLLAMA_SERVER}
+    Traceloop endpoint: {TRACELOOP_ENDPOINT}
+
+    #######MODELS SETTINGS#######
+    \tPrompt Creator 
+    \t\tModel: {PROMPT_CREATOR_MODEL}
+    \t\tTemperature: {prompt_creator_configs["temperature"]}
+    \tSketch Descriptor 
+    \t\tModel: {SKETCH_DESCRIPTOR_MODEL}
+    \t\tTemperature: {sketch_descriptor_configs["temperature"]}
+    """
+)
 ### LOGGING ###
 
 Traceloop.init(
     app_name="sketch-to-image-pipeline",
-    api_endpoint="http://stefano-ideapad-pro-5:4318" #TODO add parameter for tempo endpoint
- 
+    api_endpoint=TRACELOOP_ENDPOINT 
 )
 
-#Model Instatiation
-sketch_descriptor_llm = ChatOllama(model=SKETCH_DESCRIPTOR_MODEL,base_url=OLLAMA_SERVER,temperature=0) #Multiple  Interaction
+#MODELS INSTANTATIATION
+
+#Sketch Descriptor
+sketch_descriptor_llm = ChatOllama(model=SKETCH_DESCRIPTOR_MODEL,base_url=OLLAMA_SERVER,temperature=sketch_descriptor_configs["temperature"]) #Multiple  Interaction
+##Prompt creator
 prompt_creator_llm = OllamaLLM(model=PROMPT_CREATOR_MODEL,base_url=OLLAMA_SERVER) #single interaction 
-
-
+## Image generation
 controlnet = ControlNetModel.from_pretrained(
     "lllyasviel/sd-controlnet-scribble",
     torch_dtype=torch.float16
@@ -126,27 +127,6 @@ def get_sketch_desc_prompt(image_path: str) -> str:
     result = sketch_descriptor_llm.invoke(messages)
     return result.content.strip()
 # Prompt Creation
-prompt_creator_instruction_template="""You are a prompt engineer for image diffusion models (Stable Diffusion + ControlNet).
-
-Your task is to combine:
-1) the sketch caption (describing the structure and pose extracted from the drawing)
-2) the user instruction (stylistic preferences or artistic intent)
-
-CAPTION:
-"{caption}"
-
-USER REQUEST:
-"{user_prompt}"
-
-RULES:
-- Respect EXACTLY the shape, pose, and structure described in the caption.
-- Integrate the user's request ONLY in stylistic or atmospheric ways.
-- NEVER override or contradict the sketch caption.
-- Add photorealistic details (lighting, lens, textures) unless the user asks for a non-realistic style.
-- Produce ONE fluent sentence.
-- DO NOT show chain-of-thought.
-- Output ONLY the final prompt.
-"""
 class PromptCreatorInput(BaseModel):
     caption: str
     user_prompt:str
@@ -198,9 +178,8 @@ def generate_controlnet(sketch_path:str, prompt:str):
     )
 
     return result.images[0]
+
 ### PIPLINE DEFINTION ###
-
-
 pipeline = RunnableSequence(
     # Step 1 — pass inputs through
     lambda inputs: inputs,

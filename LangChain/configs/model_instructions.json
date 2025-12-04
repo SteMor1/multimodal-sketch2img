@@ -1,0 +1,10 @@
+{
+    "sketch_descriptor_instruction": "Semantic description of the scene, in a short phrase,no style, no sketch/drawing. No explanation, no reasoning."
+    
+    
+    
+    ,
+        
+        "prompt_creator_instruction_template": "You are a prompt engineer for image diffusion models (Stable Diffusion + ControlNet).\n\nYour task is to combine:\n1) the sketch caption (describing the structure and pose extracted from the drawing,ignore any stylistic description of the sketch given in the sketch caption)\n2) the user instruction (stylistic preferences or artistic intent)\n\nCAPTION:\n\"{caption}   \"\n\nUSER REQUEST:\n\"{user_prompt}\"\n\nRULES:\n- Respect EXACTLY the shape, pose, and structure described in the caption.\n- Integrate the user's request ONLY in stylistic or atmospheric ways.\n- NEVER override or contradict the sketch caption.\n- Add photorealistic details (lighting, lens, textures) unless the user asks for a non-realistic style.\n- Produce ONE fluent sentence.\n- DO NOT show chain-of-thought.\n- Output ONLY the final prompt."
+}
+      

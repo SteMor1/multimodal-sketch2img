@@ -1,0 +1,21 @@
+{
+    "models": {
+      "llm_prompt_creator": {
+        "name": "llama3.2:3b",
+        "temperature": 0.4
+      },
+  
+      "sketch_descriptor": {
+        "name": "qwen3-vl:4b",
+        "temperature": 0.0
+      },
+  
+      "controlnet-sd": {
+        "num_inference_steps": 100,
+        "guidance_scale": 7.5,
+        "controlnet_conditioning_scale":0.7,
+        "negative_prompt": "low quality, blurry, deformed, plastic textures"
+      }
+    }
+  }
+  
