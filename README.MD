@@ -1,4 +1,4 @@
-# Sketch to Image project
+# Multimodal Sketch-to-Image Generation
 
 This repository contains a generative AI pipeline designed to transform user-provided sketches into photorealistic images. The core of the project is a modular pipeline that integrates multiple tools and models to achieve this goal.
 
